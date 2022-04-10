@@ -13,9 +13,7 @@ class HomeController extends Controller
 {
     public function homeIndex()
     {
-      $voucher = voucher::first();
-
-      return view('index', compact('voucher'));
+      return view('index');
     }
 
     public function startCampaign(Request $request)
@@ -43,6 +41,24 @@ class HomeController extends Controller
 
     public function redeemLink($customer_id)
     {
+      $customer_list = $this->getRedeemCustomerList($customer_id);
+      $customer_detail = null;
+      foreach($customer_list as $customer)
+      {
+        $customer_detail = $customer;
+      }
+
+      if(!$customer_detail)
+      {
+        $message = "Customer not found, please try another.";
+        return view('failed', compact('message'));
+      }
+      elseif($customer_detail->redeem == false)
+      {
+        $message = "This customer cannot redeem voucher, please check the term and condition.";
+        return view('failed', compact('message'));
+      }
+
       $voucher = voucher::where('customer_id', $customer_id)->first();
       if(!$voucher)
       {
@@ -119,7 +135,7 @@ class HomeController extends Controller
       }
       else
       {
-        $customer_list = customer::leftJoin('vouchers', 'vouchers.customer_id', '=', 'customers.id')->select('customers.*', 'vouchers.redeemed')->get();
+        $customer_list = customer::leftJoin('vouchers', 'vouchers.customer_id', '=', 'customers.id')->where('customers.id', $customer_id)->select('customers.*', 'vouchers.redeemed')->get();
 
         $transaction_list = purchase_transaction::leftJoin('customers', 'customers.id', '=', 'purchase_transaction.customer_id')->where('purchase_transaction.customer_id', $customer_id)->whereDate('purchase_transaction.transaction_at', '>=', date('Y-m-d H:i:s', strtotime(now()." -30 days")))->select('purchase_transaction.*', 'customers.first_name', 'customers.last_name', \DB::raw("SUM(purchase_transaction.total_spent) as total_sum_spent"), \DB::raw("SUM(purchase_transaction.total_saving) as total_sum_saving"))->groupBy('purchase_transaction.customer_id')->get();
       }
